@@ -10,8 +10,9 @@ class LexicalAnalyzer
             #define DEBUG
             int x = 42;
             string message = ""Hello, world!"";
-            float pi = 3.14f;
+            float pi = ac;
             // This is a comment
+            sdfrhgdshed
         ";
 
         List<Token> tokens = Analyze(code);
@@ -50,8 +51,9 @@ class LexicalAnalyzer
     public static List<Token> Analyze(string code)
     {
         List<Token> tokens = new List<Token>();
+        HashSet<string> declaredVariables = new HashSet<string>();
+        bool expectingIdentifier = false;
 
-        // Regular expressions for directive, comments, reserved words, and delimiters
         string directivePattern = @"^#(\w+)";
         string commentPattern = @"//.*";
         string reservedWordsPattern = @"\b(abstract|as|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|goto|if|implicit|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|ref|return|sbyte|sealed|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|using\sstatic|virtual|void|volatile|while)\b";
@@ -61,12 +63,20 @@ class LexicalAnalyzer
 
         foreach (string line in lines)
         {
+            bool isComment = false;
             string[] words = Regex.Split(line, @"(\s+|" + delimiterPattern + @")");
 
-            foreach (string word in words)
+            for (int i = 0; i < words.Length; i++)
             {
+                string word = words[i];
                 if (string.IsNullOrWhiteSpace(word))
                 {
+                    continue;
+                }
+
+                if (isComment)
+                {
+                    tokens.Add(new Token(word, TokenType.Comment));
                     continue;
                 }
 
@@ -79,10 +89,7 @@ class LexicalAnalyzer
                 else if (Regex.IsMatch(word, commentPattern))
                 {
                     type = TokenType.Comment;
-                }
-                else if (Regex.IsMatch(word, reservedWordsPattern))
-                {
-                    type = TokenType.Reserved;
+                    isComment = true;
                 }
                 else if (Regex.IsMatch(word, delimiterPattern))
                 {
@@ -100,9 +107,36 @@ class LexicalAnalyzer
                 {
                     type = TokenType.Operator;
                 }
+                else if (expectingIdentifier)
+                {
+                    if (IsIdentifier(word))
+                    {
+                        declaredVariables.Add(word);
+                        type = TokenType.Identifier;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Error: Expected identifier after type, found {word}");
+                        type = TokenType.Error;
+                    }
+                    expectingIdentifier = false;
+                }
+                else if (Regex.IsMatch(word, reservedWordsPattern))
+                {
+                    type = TokenType.Reserved;
+                    expectingIdentifier = true; // Expecting an identifier next
+                }
                 else if (IsIdentifier(word))
                 {
-                    type = TokenType.Identifier;
+                    if (declaredVariables.Contains(word))
+                    {
+                        type = TokenType.Identifier;
+                    }
+                    else
+                    {
+                        type = TokenType.Error;
+                        Console.WriteLine($"Error: Undeclared variable {word}");
+                    }
                 }
 
                 tokens.Add(new Token(word, type));
@@ -114,7 +148,7 @@ class LexicalAnalyzer
 
     private static bool IsNumber(string word)
     {
-        return Regex.IsMatch(word, @"^\d+(\.\d+)?(f|F)?|0[xX][0-9a-fA-F]+$");
+        return Regex.IsMatch(word, @"^\d+(\.\d+)?(f|F)?|0[xX][0-9a-fA-F]+|0[oO][0-7]+|0[bB][01]+$");
     }
 
     private static bool IsString(string word)
@@ -132,4 +166,3 @@ class LexicalAnalyzer
         return Regex.IsMatch(word, @"^[a-zA-Z_]\w*$");
     }
 }
-
