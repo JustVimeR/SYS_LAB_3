@@ -1,19 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.IO;
 
 class LexicalAnalyzer
 {
     static void Main(string[] args)
     {
-        string code = @"
-            #define DEBUG
-            int x = 42;
-            string message = ""Hello, world!"";
-            float pi = ac;
-            // This is a comment
-            sdfrhgdshed
-        ";
+        string filePath = "C:\\Users\\dog79\\source\\repos\\SYS_LAB_3\\SYS_LAB_3\\code.cs";
+        string code;
+
+        try
+        {
+            code = File.ReadAllText(filePath);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error reading file: {ex.Message}");
+            return;
+        }
 
         List<Token> tokens = Analyze(code);
 
@@ -52,7 +57,10 @@ class LexicalAnalyzer
     {
         List<Token> tokens = new List<Token>();
         HashSet<string> declaredVariables = new HashSet<string>();
-        bool expectingIdentifier = false;
+        bool expectingIdentifierOrString = false;
+        bool isInString = false;
+        bool isInDirective = false;
+        string currentString = "";
 
         string directivePattern = @"^#(\w+)";
         string commentPattern = @"//.*";
@@ -71,6 +79,45 @@ class LexicalAnalyzer
                 string word = words[i];
                 if (string.IsNullOrWhiteSpace(word))
                 {
+                    continue;
+                }
+
+                if (isInDirective)
+                {
+                    tokens.Add(new Token(word, TokenType.Directive));
+                    isInDirective = false;
+                    continue;
+                }
+
+                if (word.StartsWith("#"))
+                {
+                    isInDirective = true;
+                    tokens.Add(new Token(word, TokenType.Directive));
+                    continue;
+                }
+
+                if (isInString)
+                {
+                    currentString += word;
+                    if (word.EndsWith("\""))
+                    {
+                        tokens.Add(new Token(currentString, TokenType.String));
+                        isInString = false;
+                        currentString = "";
+                    }
+                    continue;
+                }
+
+                if (word.StartsWith("\""))
+                {
+                    isInString = true;
+                    currentString = word;
+                    if (word.EndsWith("\""))
+                    {
+                        tokens.Add(new Token(currentString, TokenType.String));
+                        isInString = false;
+                        currentString = "";
+                    }
                     continue;
                 }
 
@@ -99,15 +146,11 @@ class LexicalAnalyzer
                 {
                     type = TokenType.Number;
                 }
-                else if (IsString(word))
-                {
-                    type = TokenType.String;
-                }
                 else if (IsOperator(word))
                 {
                     type = TokenType.Operator;
                 }
-                else if (expectingIdentifier)
+                else if (expectingIdentifierOrString)
                 {
                     if (IsIdentifier(word))
                     {
@@ -116,15 +159,15 @@ class LexicalAnalyzer
                     }
                     else
                     {
-                        Console.WriteLine($"Error: Expected identifier after type, found {word}");
+                        Console.WriteLine($"Error: Expected identifier or string after type, found {word}");
                         type = TokenType.Error;
                     }
-                    expectingIdentifier = false;
+                    expectingIdentifierOrString = false;
                 }
                 else if (Regex.IsMatch(word, reservedWordsPattern))
                 {
                     type = TokenType.Reserved;
-                    expectingIdentifier = true; // Expecting an identifier next
+                    expectingIdentifierOrString = true;
                 }
                 else if (IsIdentifier(word))
                 {
@@ -139,7 +182,10 @@ class LexicalAnalyzer
                     }
                 }
 
-                tokens.Add(new Token(word, type));
+                if (!isInString)
+                {
+                    tokens.Add(new Token(word, type));
+                }
             }
         }
 
@@ -149,11 +195,6 @@ class LexicalAnalyzer
     private static bool IsNumber(string word)
     {
         return Regex.IsMatch(word, @"^\d+(\.\d+)?(f|F)?|0[xX][0-9a-fA-F]+|0[oO][0-7]+|0[bB][01]+$");
-    }
-
-    private static bool IsString(string word)
-    {
-        return Regex.IsMatch(word, @"^"".*""$");
     }
 
     private static bool IsOperator(string word)
