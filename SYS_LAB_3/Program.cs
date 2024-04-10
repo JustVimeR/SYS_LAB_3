@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.IO;
 
-class LexicalAnalyzer
+public class LexicalAnalyzer
 {
-    static void Main(string[] args)
+    public static void Main(string[] args)
     {
-        string filePath = "C:\\Users\\dog79\\source\\repos\\SYS_LAB_3\\SYS_LAB_3\\code.cs";
+        string filePath = "C:\\Users\\dog79\\source\\repos\\SYS_LAB_31\\SYS_LAB_3\\code.cs";
         string code;
 
         try
@@ -55,6 +55,11 @@ class LexicalAnalyzer
 
     public static List<Token> Analyze(string code)
     {
+        if (string.IsNullOrEmpty(code) || code.Contains("\0"))
+        {
+            throw new ArgumentException("Invalid input string.");
+        }
+
         List<Token> tokens = new List<Token>();
         HashSet<string> declaredVariables = new HashSet<string>();
         bool expectingIdentifierOrString = false;
@@ -192,17 +197,17 @@ class LexicalAnalyzer
         return tokens;
     }
 
-    private static bool IsNumber(string word)
+    public static bool IsNumber(string word)
     {
         return Regex.IsMatch(word, @"^\d+(\.\d+)?(f|F)?|0[xX][0-9a-fA-F]+|0[oO][0-7]+|0[bB][01]+$");
     }
 
-    private static bool IsOperator(string word)
+    public static bool IsOperator(string word)
     {
         return Regex.IsMatch(word, @"^(\+|-|\*|/|%|=|<|>|!|&|\||\(|\)|{|}|,|\[|\]|\.|\;)$");
     }
 
-    private static bool IsIdentifier(string word)
+    public static bool IsIdentifier(string word)
     {
         return Regex.IsMatch(word, @"^[a-zA-Z_]\w*$");
     }
